@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordsum // Cryptographic Logic</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --bg: #020617;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #6366f1;
+            --secondary: #22d3ee;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text: #f8fafc;
+        }
+
+        body {
+            background: radial-gradient(circle at top left, #1e1b4b, #020617);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .game-container {
+            flex: 2;
+            min-width: 350px;
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 40px;
+            border-radius: 32px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar {
+            flex: 1;
+            min-width: 250px;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 25px;
+            height: fit-content;
+        }
+
+        .sidebar h2 { 
+            font-size: 0.8rem; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            color: #64748b;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 10px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .header h1 { 
+            text-align: center;
+            font-size: 3.5rem; 
+            margin: 0; 
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
+            letter-spacing: -3px;
+        }
+
+        .mode-toggles { display: flex; justify-content: center; gap: 8px; margin: 20px 0; flex-wrap: wrap; }
+        
+        .pill-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            color: #94a3b8;
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+        }
+
+        .pill-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .target-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            border-radius: 24px;
+            text-align: center;
+            margin-bottom: 25px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+        }
+
+        #target-sum { 
+            font-size: 5.5rem; 
+            font-weight: 900; 
+            color: white;
+            line-height: 1;
+            text-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .stat-box {
+            background: rgba(255,255,255,0.03);
+            padding: 12px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-label { font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px; }
+        .stat-val { font-weight: 800; font-size: 1.1rem; color: var(--text); }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(0,0,0,0.4);
+            border: 2px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 18px;
+            color: white;
+            font-size: 2rem;
+            text-align: center;
+            text-transform: uppercase;
+            outline: none;
+            margin-bottom: 12px;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .btn-main {
+            width: 100%;
+            padding: 18px;
+            border-radius: 20px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-weight: 900;
+            font-size: 1.1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: transform 0.1s;
+        }
+        .btn-main:active { transform: scale(0.98); }
+
+        .alphabet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+            gap: 6px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .letter {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--glass-border);
+            padding: 6px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .state-correct { background: var(--success) !important; color: #020617 !important; font-weight: 800; }
+        .state-misplaced { background: #eab308 !important; color: #020617 !important; font-weight: 800; }
+        .state-excluded { opacity: 0.2; filter: grayscale(1); }
+        
+        #msg { text-align: center; font-size: 0.85rem; height: 1.5rem; margin-bottom: 10px; font-weight: 700; }
+        .success-text { color: var(--success); }
+        .error-text { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+    <div class="main-layout">
+        <div class="game-container">
+            <div class="header">
+                <h1>Wordsum</h1>
+                <div class="mode-toggles">
+                    <button class="pill-btn active" id="m-score" onclick="setMode('score')">Zen</button>
+                    <button class="pill-btn" id="m-time" onclick="setMode('time')">Time Trial</button>
+                    <button class="pill-btn active" id="c-basic" onclick="setCipher('basic')">A=1</button>
+                    <button class="pill-btn" id="c-expert" onclick="setCipher('expert')">Expert</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box"><span class="stat-label">Points</span><span class="stat-val" id="score">1000</span></div>
+                <div class="stat-box"><span class="stat-label">Tries</span><span class="stat-val" id="guesses">0</span></div>
+                <div class="stat-box"><span class="stat-label">Clock</span><span class="stat-val" id="timer">ZEN</span></div>
+            </div>
+
+            <div class="target-card">
+                <span id="target-sum">--</span>
+                <div style="font-size: 0.65rem; color: #64748b; margin-top:8px; letter-spacing: 2px; font-weight: 700;">ENCRYPTED TARGET KEY</div>
+            </div>
+
+            <div id="msg"></div>
+            <div id="slots" style="text-align:center; font-size:2.5rem; letter-spacing:12px; margin-bottom:25px; font-family:monospace; color:var(--secondary); font-weight: 900;">____</div>
+
+            <input type="text" id="guess-in" placeholder="TYPE WORD" maxlength="4" autocomplete="off" autofocus>
+            <button class="btn-main" onclick="submitGuess()">DECRYPT DATA</button>
+            
+            <button onclick="initGame()" style="background:transparent; color:#475569; border:none; width:100%; margin-top:15px; cursor:pointer; font-size:0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Refresh Board</button>
+
+            <div class="alphabet-grid" id="alpha-log"></div>
+        </div>
+
+        <div class="sidebar">
+            <h2>Decryption Log</h2>
+            <div id="leaderboard">
+                <div style="color:#475569; font-size:0.8rem; text-align: center; padding-top: 20px;">No successful decrypts in this session.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Full word list restored
+        const DICT = {
+            3: ["ACE", "ACT", "AGE", "AGO", "AID", "AIM", "AIR", "ALL", "AND", "ANY", "ART", "ASK", "ATE", "BAD", "BAG", "BAN", "BAR", "BAT", "BED", "BEE", "BET", "BIG", "BIN", "BIT", "BOX", "BOY", "BUS", "BUT", "BYE", "CAB", "CAN", "CAP", "CAR", "CAT", "COW", "CRY", "CUP", "CUT", "DAD", "DAM", "DAY", "DEN", "DEW", "DID", "DIE", "DIG", "DIM", "DIP", "DOG", "DOT", "DRY", "DUE", "DUG", "DYE", "EAR", "EAT", "EGG", "EGO", "ELK", "END", "EYE", "FAN", "FAR", "FAT", "FED", "FEW", "FIG", "FIN", "FIT", "FIX", "FLY", "FOG", "FOR", "FOX", "FRY", "FUN", "GAP", "GAS", "GEL", "GEM", "GET", "GIG", "GIN", "GOD", "GOT", "GUM", "GUN", "GUY", "HAD", "HAM", "HAS", "HAT", "HAY", "HEM", "HEN", "HER", "HEY", "HID", "HIM", "HIP", "HIS", "HIT", "HOP", "HOT", "HOW", "HUB", "HUG", "HUM", "HUT", "ICE", "ICY", "ILL", "INK", "INN", "ITS", "IVY", "JAM", "JAR", "JAW", "JET", "JOB", "JOE", "JOG", "JOY", "JUG", "JUT", "KEG", "KEY", "KID", "KIN", "KIT", "LAB", "LAD", "LAG", "LAP", "LAW", "LAY", "LEG", "LET", "LID", "LIE", "LIP", "LIT", "LOG", "LOT", "LOW", "MAD", "MAP", "MAT", "MAY", "MEN", "MET", "MIX", "MOB", "MOM", "MUD", "MUG", "NAP", "NET", "NEW", "NIL", "NIP", "NOD", "NOT", "NOW", "NUN", "NUT", "OAK", "OAR", "OAT", "ODD", "OFF", "OIL", "OLD", "ONE", "OPT", "ORE", "OUR", "OUT", "OWL", "OWN", "PAD", "PAN", "PAR", "PAT", "PAW", "PAY", "PEN", "PET", "PEW", "PIE", "PIG", "PIN", "PIT", "PLY", "POD", "POP", "POT", "PRY", "PUB", "PUN", "PUT", "RAG", "RAM", "RAN", "RAT", "RAW", "RAY", "RED", "RIB", "RID", "RIG", "RIM", "RIP", "ROB", "ROD", "ROW", "RUB", "RUG", "RUN", "RUT", "SAD", "SAG", "SAP", "SAT", "SAW", "SAY", "SEA", "SEE", "SET", "SEW", "SHE", "SHY", "SIP", "SIR", "SIT", "SIX", "SKI", "SKY", "SLY", "SOB", "SON", "SOY", "SPA", "SPY", "SUM", "SUN", "TAB", "TAG", "TAN", "TAP", "TAR", "TAX", "TEA", "TEN", "THE", "TIE", "TIN", "TIP", "TOE", "TOP", "TOY", "TRY", "TUB", "TUG", "TWO", "URN", "USE", "VAN", "VAT", "VET", "VIA", "VIE", "VOW", "WAG", "WAR", "WAS", "WAY", "WEB", "WED", "WET", "WHO", "WHY", "WIG", "WIN", "WIT", "WON", "YAM", "YES", "YET", "YOU", "ZOO"],
+            4: ["ABLE", "ACID", "ALSO", "AREA", "ARMY", "AWAY", "BABY", "BACK", "BALL", "BAND", "BANK", "BARE", "BASE", "BEAR", "BEAT", "BEEN", "BELL", "BELT", "BEST", "BILL", "BIRD", "BLOW", "BLUE", "BOAT", "BODY", "BOMB", "BOND", "BONE", "BOOK", "BOOM", "BORN", "BOTH", "BOWL", "BURN", "BUSH", "BUSY", "CAKE", "CALL", "CALM", "CAME", "CAMP", "CARD", "CARE", "CASE", "CASH", "CAST", "CAVE", "CHIP", "CITY", "CLAN", "CLAW", "CLAY", "CLIP", "CLUB", "COAL", "COAT", "CODE", "COLD", "COME", "COOK", "COOL", "COPE", "COPY", "CORE", "COST", "CREW", "CROP", "DARK", "DATA", "DATE", "DAWN", "DAYS", "DEAF", "DEAL", "DEAR", "DEBT", "DECK", "DEEP", "DENY", "DESK", "DIAL", "DICE", "DIET", "DISK", "DOES", "DONE", "DOOR", "DOSE", "DOWN", "DRAW", "DREW", "DROP", "DRUG", "DRUM", "DUAL", "DUKE", "DULL", "DUMP", "DUNG", "DUST", "DUTY", "EACH", "EARN", "EAST", "EASY", "ECHO", "EDGE", "ELSE", "ENVY", "EPIC", "EVEN", "EVER", "EVIL", "EXAM", "EXIT", "FACE", "FACT", "FAIL", "FAIR", "FALL", "FARM", "FAST", "FATE", "FEAR", "FEED", "FEEL", "FEET", "FELL", "FELT", "FILE", "FILL", "FILM", "FIND", "FINE", "FIRE", "FIRM", "FISH", "FIVE", "FLAT", "FLOW", "FLUX", "FOAM", "FOLD", "FOLK", "FONT", "FOOD", "FOOT", "FORD", "FORM", "FORT", "FOUR", "FREE", "FROM", "FUEL", "FULL", "FUND", "GAIN", "GAME", "GATE", "GEAR", "GIFT", "GIRL", "GIVE", "GLAD", "GLOW", "GOAL", "GOAT", "GOLD", "GONE", "GOOD", "GRAY", "GREW", "GRID", "GRIN", "GRIT", "GROW", "GULF", "GURU", "HAIL", "HAIR", "HALF", "HALL", "HALT", "HAND", "HANG", "HARD", "HARM", "HATE", "HAVE", "HEAD", "HEAL", "HEAR", "HEAT", "HELD", "HELL", "HELP", "HERE", "HERO", "HIDE", "HIGH", "HILL", "HIRE", "HOLD", "HOLE", "HOLY", "HOME", "HOPE", "HOST", "HOUR", "HUGE", "HUNG", "HUNT", "HURT", "IDEA", "IDLE", "INCH", "INTO", "IRON", "ITEM", "JACK", "JAZZ", "JOIN", "JUMP", "JUNE", "JUST", "KEEN", "KEEP", "KEPT", "KICK", "KILL", "KIND", "KING", "KNEE", "KNEW", "KNIT", "KNOT", "KNOW", "LACK", "LADY", "LAID", "LAKE", "LAMP", "LAND", "LANE", "LAST", "LATE", "LAVA", "LAWN", "LAZY", "LEAD", "LEAF", "LEAN", "LEFT", "LEND", "LENS", "LESS", "LEST", "LEVY", "LIAR", "LICK", "LIFE", "LIFT", "LIKE", "LILY", "LIMB", "LIMP", "LINE", "LINK", "LION", "LIST", "LIVE", "LOAD", "LOAN", "LOCK", "LOFT", "LOGO", "LONG", "LOOK", "LORD", "LOSE", "LOSS", "LOST", "LOUD", "LOVE", "LUCK", "LUMP", "LUNG", "LURE", "LUSH", "LYRE", "MADE", "MAID", "MAIL", "MAIN", "MAKE", "MALE", "MANY", "MAPS", "MARK", "MARS", "MASK", "MASS", "MATE", "MEAL", "MEAN", "MEAT", "MEEK", "MEET", "MELT", "MEMO", "MEND", "MENU", "MESS", "MICA", "MILD", "MILE", "MILK", "MILL", "MIND", "MINE", "MINT", "MISS", "MIST", "MODE", "MOOD", "MOON", "MORE", "MOST", "MOVE", "MUCH", "MUSE", "MUTE", "MYTH", "NAME", "NEAR", "NECK", "NEED", "NEON", "NEWS", "NEXT", "NICE", "NICK", "NINE", "NODE", "NONE", "NOON", "NOSE", "NOTE", "NOUN", "NULL", "OATH", "OBEY", "ONLY", "ONTO", "OPEN", "ORAL", "OVER", "PACE", "PACK", "PAGE", "PAID", "PAIN", "PAIR", "PALM", "PANT", "PART", "PASS", "PAST", "PATH", "PEAK", "PEAR", "PECK", "PEEL", "PEER", "PENT", "PERK", "PEST", "PETS", "PICK", "PIER", "PILE", "PILL", "PINE", "PINK", "PIPE", "PITY", "PLAN", "PLAY", "PLOT", "PLUG", "PLUS", "POEM", "POET", "POKE", "POLE", "POLL", "POOL", "POOR", "PORT", "POSE", "POST", "POUR", "PRAY", "PREP", "PRIM", "PROS", "PUFF", "PULL", "PUMP", "PURE", "PUSH", "QUIT", "QUIZ", "RACE", "RAGE", "RAID", "RAIN", "RARE", "RATE", "READ", "REAL", "REAR", "RELY", "RENT", "REST", "RICE", "RICH", "RIDE", "RING", "RISE", "RISK", "ROAD", "ROCK", "ROLE", "ROOF", "ROOM", "ROOT", "ROSE", "ROUT", "RUDE", "RULE", "RUSH", "RUTH", "SAFE", "SAGE", "SAID", "SAIL", "SALE", "SALT", "SAME", "SAND", "SANG", "SAVE", "SCAN", "SCAR", "SEAL", "SEAT", "SEED", "SEEK", "SEEM", "SEEN", "SELF", "SELL", "SEND", "SENT", "SEPT", "SHIP", "SHOE", "SHOP", "SHOT", "SHOW", "SHUT", "SICK", "SIDE", "SIGN", "SILK", "SING", "SINK", "SITE", "SIZE", "SKIN", "SLAB", "SLOT", "SLOW", "SLUM", "SNAP", "SNOW", "SOAK", "SOAP", "SOAR", "SOFT", "SOIL", "SOLD", "SOLE", "SOME", "SONG", "SOON", "SORE", "SORT", "SOUL", "SOUP", "SOUR", "SPAN", "SPUR", "STAB", "STAR", "STAY", "STEM", "STEP", "STIR", "STOP", "SUCH", "SUIT", "SUNG", "SUNK", "SURE", "SWAN", "SWAY", "SWIM", "TACT", "TAIL", "TAKE", "TALE", "TALK", "TALL", "TANK", "TAPE", "TASK", "TEAM", "TEAR", "TELL", "TENT", "TERM", "TEST", "TEXT", "THAN", "THAT", "THEM", "THEN", "THEY", "THIN", "THIS", "THOU", "THUS", "TICK", "TIDE", "TIDY", "TIED", "TIER", "TILE", "TILL", "TIME", "TINT", "TINY", "TIRE", "TOAD", "TOLD", "TOLL", "TONE", "TOOK", "TOOL", "TOPS", "TORE", "TORN", "TOSS", "TOUR", "TOWN", "TRAP", "TRAY", "TREE", "TREK", "TRIM", "TRIO", "TRUE", "TUBE", "TUNE", "TURN", "TWIN", "TYPE", "UNIT", "UPON", "URGE", "USED", "USER", "VAST", "VEIL", "VEIN", "VENT", "VERB", "VERY", "VEST", "VETO", "VICE", "VIEW", "VINE", "VISA", "VOID", "VOTE", "WAGE", "WAIT", "WAKE", "WALK", "WALL", "WANT", "WARD", "WARE", "WARM", "WARN", "WARY", "WASH", "WASP", "WATT", "WAVE", "WEAK", "WEAR", "WEED", "WEEK", "WELD", "WELL", "WENT", "WERE", "WEST", "WHAT", "WHEN", "WHOM", "WIDE", "WIFE", "WILD", "WILL", "WIND", "WINE", "WING", "WINS", "WIRE", "WISE", "WISH", "WITH", "WOLF", "WOOD", "WOOL", "WORD", "WORK", "WORM", "WRAP", "YARD", "YEAR", "YELL", "YOGA", "YOUR", "ZERO", "ZONE"],
+            5: ["ABOUT", "ABOVE", "ADAPT", "ADDED", "ADULT", "AFTER", "AGAIN", "AGENT", "AGREE", "AHEAD", "AISLE", "ALARM", "ALBUM", "ALERT", "ALIEN", "ALIVE", "ALLOW", "ALONE", "ALONG", "ALTER", "AMONG", "AMPLE", "AMUSE", "ANGEL", "ANGER", "ANGLE", "ANGRY", "ANKLE", "APPLY", "ARENA", "ARGUE", "ARISE", "ARMOR", "AROMA", "ARRAY", "ARROW", "ASIDE", "ASSET", "AUDIO", "AUDIT", "AVOID", "AWAIT", "AWAKE", "AWARD", "AWARE", "AWFUL", "BASIC", "BASIN", "BATCH", "BEACH", "BEARD", "BEAST", "BEGIN", "BEING", "BELLY", "BELOW", "BENCH", "BIBLE", "BIRCH", "BIRTH", "BLACK", "BLADE", "BLAME", "BLANK", "BLAST", "BLEED", "BLEND", "BLESS", "BLIND", "BLINK", "BLOCK", "BLOOD", "BLOOM", "BOARD", "BOAST", "BONUS", "BOOST", "BOUND", "BRAIN", "BRAKE", "BRAND", "BRASS", "BRAVE", "BREAD", "BREAK", "BREED", "BRIEF", "BRING", "BRISK", "BROAD", "BROKE", "BROOK", "BROOM", "BROWN", "BRUSH", "BUILD", "BUNCH", "BURST", "CABIN", "CABLE", "CAGEY", "CAMEL", "CANAL", "CANDY", "CANOE", "CARGO", "CARRY", "CARVE", "CAUSE", "CEASE", "CHAIN", "CHAIR", "CHALK", "CHAMP", "CHANT", "CHAOS", "CHART", "CHASE", "CHEAP", "CHECK", "CHEEK", "CHEER", "CHEST", "CHIEF", "CHILD", "CHILL", "CHINA", "CHOIR", "CHOKE", "CHORD", "CHUNK", "CIDER", "CIGAR", "CIVIC", "CIVIL", "CLAIM", "CLAMP", "CLASH", "CLASS", "CLEAN", "CLEAR", "CLERK", "CLICK", "CLIFF", "CLIMB", "CLING", "CLOCK", "CLOSE", "CLOUD", "CLOWN", "COACH", "COAST", "COLOR", "COMBO", "COMET", "COMIC", "CORAL", "COUCH", "COUNT", "COURT", "COVER", "CRACK", "CRAFT", "CRANE", "CRASH", "CRAWL", "CRAZY", "CREAM", "CREED", "CREEK", "CREST", "CRIME", "CRISP", "CROOK", "CROSS", "CROWD", "CROWN", "CRUDE", "CRUEL", "CRUSH", "CURSE", "CURVE", "CYCLE", "DAILY", "DAIRY", "DANCE", "DEATH", "DEBUG", "DELAY", "DELTA", "DEPTH", "DIARY", "DIGIT", "DIRTY", "DITCH", "DODGE", "DOUBT", "DOZEN", "DRAFT", "DRAIN", "DRAMA", "DREAD", "DREAM", "DRESS", "DRIFT", "DRILL", "DRINK", "DRIVE", "DRONE", "DROWN", "DRUNK", "DUMMY", "DWELL", "EAGER", "EARLY", "EARTH", "EIGHT", "ELBOW", "ELDER", "ELECT", "ELITE", "EMPTY", "ENACT", "ENEMY", "ENJOY", "ENTER", "ENTRY", "EQUAL", "EQUIP", "ERASE", "ERROR", "ESSAY", "EVENT", "EVERY", "EXACT", "EXIST", "EXTRA", "FAINT", "FAIRY", "FAITH", "FALSE", "FANCY", "FAULT", "FEAST", "FENCE", "FETCH", "FIELD", "FIFTY", "FIGHT", "FINAL", "FIRST", "FLAIR", "FLAME", "FLASH", "FLASK", "FLEET", "FLESH", "FLOAT", "FLOCK", "FLOOD", "FLOOR", "FLOUR", "FLUID", "FLUSH", "FOCUS", "FORCE", "FORTH", "FORTY", "FORUM", "FOUND", "FRAME", "FRAUD", "FRESH", "FRONT", "FROST", "FRUIT", "FUNNY", "GAUGE", "GHOST", "GIANT", "GLASS", "GLOVE", "GRACE", "GRADE", "GRAIN", "GRAND", "GRANT", "GRAPH", "GRASP", "GRASS", "GRAVE", "GREAT", "GREED", "GREEN", "GREET", "GRIEF", "GRILL", "GRIND", "GROSS", "GROUP", "GUARD", "GUESS", "GUEST", "GUIDE", "GUILD", "GUILT", "HABIT", "HAPPY", "HARSH", "HEART", "HEAVY", "HELLO", "HINGE", "HONOR", "HORSE", "HOTEL", "HOUSE", "HUMAN", "HUMOR", "IDEAL", "IMAGE", "INDEX", "INNER", "INPUT", "ISSUE", "JOINT", "JUDGE", "JUICE", "KNOCK", "LABEL", "LABOR", "LARGE", "LASER", "LATER", "LAUGH", "LAYER", "LEARN", "LEASE", "LEAST", "LEMON", "LEVEL", "LIGHT", "LIMIT", "LOCAL", "LOGIC", "LOOSE", "LUCKY", "LUNCH", "LYRIC", "MAGIC", "MAJOR", "MAKER", "MARCH", "MATCH", "MAYOR", "MEDIA", "METAL", "METER", "MIDST", "MIGHT", "MINOR", "MIXED", "MODEL", "MONEY", "MONTH", "MORAL", "MOTOR", "MOUNT", "MOUSE", "MOUTH", "MOVIE", "MUSIC", "NAKED", "NERVE", "NEVER", "NIGHT", "NOBLE", "NOISE", "NORTH", "NOVEL", "NURSE", "OCEAN", "OFFER", "OFTEN", "ORDER", "OTHER", "OUTER", "OWNER", "PAINT", "PANEL", "PAPER", "PARTY", "PATCH", "PAUSE", "PEACE", "PHASE", "PHONE", "PHOTO", "PIANO", "PILOT", "PITCH", "PIXEL", "PLACE", "PLAIN", "PLANE", "PLANT", "PLATE", "POINT", "POWER", "PRESS", "PRICE", "PRIDE", "PRIME", "PRINT", "PRIZE", "PROOF", "PROUD", "PROVE", "PULSE", "QUICK", "QUIET", "QUITE", "QUOTE", "RADIO", "RAISE", "RANGE", "RAPID", "RATIO", "REACH", "READY", "RELAX", "REPLY", "RESET", "RIVER", "ROBOT", "ROUGH", "ROUND", "ROUTE", "ROYAL", "RURAL", "SCALE", "SCENE", "SCOPE", "SCORE", "SENSE", "SERVE", "SHADE", "SHAKE", "SHAPE", "SHARE", "SHARP", "SHEET", "SHELL", "SHIFT", "SHINE", "SHIRT", "SHOCK", "SHOOT", "SHORT", "SHOUT", "SHOWN", "SIGHT", "SINCE", "SKILL", "SLEEP", "SLIDE", "SMALL", "SMART", "SMILE", "SMOKE", "SOLID", "SOLVE", "SOUND", "SOUTH", "SPACE", "SPARE", "SPEAK", "SPEED", "SPELL", "SPEND", "SPIKE", "SPIRIT", "SPLIT", "SPOKE", "SPORT", "STAFF", "STAGE", "STAKE", "STAMP", "STAND", "STARE", "START", "STATE", "STEAM", "STEEL", "STEEP", "STEER", "STICK", "STILL", "STOCK", "STONE", "STORE", "STORM", "STORY", "STRIP", "STUCK", "STUDY", "STUFF", "STYLE", "SUGAR", "SUITE", "SUPER", "SWEET", "SWIFT", "SWORD", "TABLE", "TASTE", "TEACH", "THANK", "THEFT", "THEIR", "THEME", "THERE", "THESE", "THICK", "THING", "THINK", "THIRD", "THOSE", "THREE", "THROW", "TIGHT", "TITLE", "TODAY", "TOKEN", "TOTAL", "TOUCH", "TOUGH", "TOWER", "TRACK", "TRADE", "TRAIN", "TREAT", "TREND", "TRIAL", "TRIBE", "TRICK", "TRUCK", "TRUST", "TRUTH", "TWICE", "UNDER", "UNION", "UNITE", "UNTIL", "UPSET", "URBAN", "USAGE", "USUAL", "VALID", "VALUE", "VIDEO", "VIRUS", "VISIT", "VITAL", "VOICE", "WASTE", "WATCH", "WATER", "WHEEL", "WHERE", "WHICH", "WHILE", "WHITE", "WHOLE", "WORLD", "WORTH", "WRITE", "WRONG", "YIELD", "YOUNG", "YOUTH"]
+        };
+
+        let cipher = {};
+        let targetWord = "";
+        let targetSum = 0;
+        let score = 1000;
+        let guesses = 0;
+        let gameMode = 'score';
+        let cipherMode = 'basic';
+        let timer = null;
+        let timeLeft = 120;
+        let solvedWords = [];
+
+        function setMode(m) {
+            gameMode = m;
+            document.getElementById('m-score').classList.toggle('active', m==='score');
+            document.getElementById('m-time').classList.toggle('active', m==='time');
+            initGame();
+        }
+
+        function setCipher(c) {
+            cipherMode = c;
+            document.getElementById('c-basic').classList.toggle('active', c==='basic');
+            document.getElementById('c-expert').classList.toggle('active', c==='expert');
+            initGame();
+        }
+
+        function generateCipher() {
+            cipher = {};
+            const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            if (cipherMode === 'basic') {
+                alpha.forEach((c, i) => cipher[c] = i + 1);
+            } else {
+                let vals = Array.from({length: 26}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+                alpha.forEach((c, i) => cipher[c] = vals[i]);
+            }
+        }
+
+        function initGame() {
+            clearInterval(timer);
+            generateCipher();
+            
+            // Pick word and calculate sum
+            const wordList = DICT[4];
+            targetWord = wordList[Math.floor(Math.random() * wordList.length)];
+            targetSum = 0;
+            for(let char of targetWord) { targetSum += cipher[char]; }
+            
+            // Reset Stats
+            score = 1000; guesses = 0; timeLeft = 120;
+            
+            // Update UI
+            document.getElementById('target-sum').innerText = targetSum;
+            document.getElementById('score').innerText = score;
+            document.getElementById('guesses').innerText = guesses;
+            document.getElementById('msg').innerText = "";
+            document.getElementById('slots').innerText = "____";
+            document.getElementById('guess-in').disabled = false;
+            document.getElementById('guess-in').value = "";
+            
+            if(gameMode === 'time') {
+                document.getElementById('timer').innerText = "120s";
+                timer = setInterval(() => {
+                    timeLeft--;
+                    document.getElementById('timer').innerText = timeLeft + "s";
+                    if(timeLeft <= 0) { clearInterval(timer); endGame("SYSTEM LOCKOUT - TIME OVER"); }
+                }, 1000);
+            } else {
+                document.getElementById('timer').innerText = "ZEN";
+            }
+            updateAlphabet();
+        }
+
+        function updateAlphabet() {
+            const log = document.getElementById('alpha-log');
+            log.innerHTML = "";
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(c => {
+                const el = document.createElement('div');
+                el.className = 'letter'; el.id = `L-${c}`;
+                el.innerHTML = `<b>${c}</b><br><small>${cipher[c]}</small>`;
+                log.appendChild(el);
+            });
+        }
+
+        function submitGuess() {
+            const inp = document.getElementById('guess-in');
+            const val = inp.value.toUpperCase();
+            const msg = document.getElementById('msg');
+            
+            if(val.length !== 4) return;
+
+            guesses++;
+            document.getElementById('guesses').innerText = guesses;
+
+            // Highlight alphabet
+            val.split('').forEach((char, i) => {
+                const el = document.getElementById(`L-${char}`);
+                if (!targetWord.includes(char)) el.classList.add('state-excluded');
+                else if (val[i] === targetWord[i]) el.className = 'letter state-correct';
+                else el.className = 'letter state-misplaced';
+            });
+
+            if (val === targetWord) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#6366f1', '#22d3ee'] });
+                msg.innerHTML = '<span class="success-text">DECRYPTION SUCCESSFUL</span>';
+                document.getElementById('slots').innerText = targetWord;
+                recordWin();
+                clearInterval(timer);
+                inp.disabled = true;
+            } else {
+                score -= 25;
+                document.getElementById('score').innerText = score;
+                msg.innerHTML = '<span class="error-text">INVALID DATA SIGNATURE</span>';
+                setTimeout(() => { if(inp.disabled === false) msg.innerText = ""; }, 1500);
+            }
+            inp.value = "";
+            inp.focus();
+        }
+
+        function recordWin() {
+            solvedWords.unshift({ word: targetWord, score: score });
+            const board = document.getElementById('leaderboard');
+            board.innerHTML = solvedWords.map(item => `
+                <div class="leaderboard-item">
+                    <span>${item.word}</span>
+                    <span style="color:var(--secondary)">${item.score}</span>
+                </div>
+            `).join('');
+        }
+
+        function endGame(m) {
+            document.getElementById('msg').innerHTML = `<span class="error-text">${m}</span>`;
+            document.getElementById('guess-in').disabled = true;
+        }
+
+        document.getElementById('guess-in').onkeypress = (e) => { if(e.key==='Enter') submitGuess(); };
+        
+        // Boot game
+        initGame();
+    </script>
+</body>
+</html>
